@@ -1,0 +1,10 @@
+{
+  "name": "ai-knowledge-inbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal full-stack prototype: notes/URL ingestion with a simple RAG pipeline for natural-language Q&A over saved content.",
+  "scripts": {
+    "server": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev"
+  }
+}

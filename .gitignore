@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Env files
+.env
+.env.local
+*.env
+
+# Build output
+dist/
+build/
+
+# Database
+server/data/
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor/OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+
+node_modules/
+.env
+.env.*
+!.env.example
+
+dist/
+build/
+
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+.DS_Store

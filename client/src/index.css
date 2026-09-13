@@ -1,0 +1,265 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #f7f7f8;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.app-header h1 {
+  margin: 0 0 0.4rem;
+}
+
+.app-description {
+  margin: 0;
+  color: #444;
+  max-width: 60ch;
+}
+
+/* Shared card wrapper for each major section (Add Knowledge / Ask a Question / Saved Items) */
+.card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.card h2 {
+  margin: 0 0 0.25rem;
+}
+
+.section-hint {
+  margin: 0 0 0.75rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.ingest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tabs button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.tabs button.active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.ingest-form textarea,
+.ingest-form input[type='text'],
+.query-input-row input[type='text'] {
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.ingest-form textarea:disabled,
+.ingest-form input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.btn {
+  padding: 0.5rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ingest-form .btn {
+  align-self: flex-start;
+}
+
+.error {
+  color: #b91c1c;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.success {
+  color: #15803d;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}
+
+.info-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  margin: 0;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.item {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.item-meta,
+.result-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 0.35rem;
+}
+
+.badge {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  white-space: nowrap;
+}
+
+.badge-note {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-url {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.date {
+  margin-left: auto;
+  color: #888;
+}
+
+.item-content,
+.query-snippet {
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.query-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.query-input-row input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.query-answer {
+  margin-top: 1rem;
+}
+
+.query-answer h3 {
+  margin: 0.9rem 0 0.25rem;
+}
+
+.query-answer h3:first-child {
+  margin-top: 0;
+}
+
+.query-results-list {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.query-result {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .query-input-row {
+    flex-direction: column;
+  }
+
+  .query-input-row .btn {
+    align-self: flex-start;
+  }
+
+  .date {
+    margin-left: 0;
+  }
+}
