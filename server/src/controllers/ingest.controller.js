@@ -1,8 +1,15 @@
-import { ingestItem } from '../services/ingestion.service.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { ingestItem } from "../services/ingestion.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const postIngest = asyncHandler(async (req, res) => {
   const { type, content, url } = req.body ?? {};
-  const item = await ingestItem({ type, content, url });
+
+  const item = await ingestItem({
+    type,
+    content,
+    url,
+    userId: req.user.id,
+  });
+
   res.status(201).json({ item });
 });

@@ -1,25 +1,4 @@
-import { db } from './db.js';
-
-const insertChunkStmt = db.prepare(`
-  INSERT INTO chunks (item_id, chunk_index, content, embedding)
-  VALUES (?, ?, ?, ?)
-`);
-
-const selectByItemIdStmt = db.prepare(`
-  SELECT id, item_id, chunk_index, content, embedding, created_at
-  FROM chunks
-  WHERE item_id = ?
-  ORDER BY chunk_index ASC
-`);
-
-const selectAllStmt = db.prepare(`
-  SELECT id, item_id, chunk_index, content, embedding, created_at
-  FROM chunks
-`);
-
-const deleteByItemIdStmt = db.prepare(`
-  DELETE FROM chunks WHERE item_id = ?
-`);
+import { pool } from "./db.js";
 
 function toChunkDTO(row) {
   return {
@@ -27,40 +6,154 @@ function toChunkDTO(row) {
     itemId: row.item_id,
     chunkIndex: row.chunk_index,
     content: row.content,
-    embedding: JSON.parse(row.embedding),
+    embedding:
+      typeof row.embedding === "string"
+        ? JSON.parse(row.embedding)
+        : row.embedding,
     createdAt: row.created_at,
   };
 }
 
-export function createChunk({ itemId, chunkIndex, content, embedding }) {
-  const result = insertChunkStmt.run(itemId, chunkIndex, content, JSON.stringify(embedding));
-  return Number(result.lastInsertRowid);
+export async function createChunk({ itemId, chunkIndex, content, embedding }) {
+  const result = await pool.query(
+    `
+      INSERT INTO chunks (
+        item_id,
+        chunk_index,
+        content,
+        embedding
+      )
+      VALUES ($1, $2, $3, $4::vector)
+      RETURNING id
+    `,
+    [itemId, chunkIndex, content, JSON.stringify(embedding)],
+  );
+
+  return result.rows[0].id;
 }
 
-/** Inserts all chunks for one item in a single transaction (all-or-nothing). */
-export function createChunks(chunkRecords) {
+/**
+ * Inserts all chunks for one item in a single transaction.
+ * Either every chunk is inserted or none is.
+ */
+export async function createChunks(chunkRecords) {
   if (chunkRecords.length === 0) return [];
 
-  db.exec('BEGIN');
+  const client = await pool.connect();
+
   try {
-    const ids = chunkRecords.map((record) => createChunk(record));
-    db.exec('COMMIT');
+    await client.query("BEGIN");
+
+    const ids = [];
+
+    for (const record of chunkRecords) {
+      const { itemId, chunkIndex, content, embedding } = record;
+
+      const result = await client.query(
+        `
+          INSERT INTO chunks (
+            item_id,
+            chunk_index,
+            content,
+            embedding
+          )
+          VALUES ($1, $2, $3, $4::vector)
+          RETURNING id
+        `,
+        [itemId, chunkIndex, content, JSON.stringify(embedding)],
+      );
+
+      ids.push(result.rows[0].id);
+    }
+
+    await client.query("COMMIT");
+
     return ids;
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Failed to roll back chunk transaction:", rollbackError);
+    }
+
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
-export function getChunksByItemId(itemId) {
-  return selectByItemIdStmt.all(itemId).map(toChunkDTO);
+/**
+ * Internal maintenance helper.
+ * Only use in trusted maintenance scripts, never directly in API routes.
+ */
+export async function getChunksByItemIdForMaintenance(itemId) {
+  const result = await pool.query(
+    `
+      SELECT
+        id,
+        item_id,
+        chunk_index,
+        content,
+        embedding,
+        created_at
+      FROM chunks
+      WHERE item_id = $1
+      ORDER BY chunk_index ASC
+    `,
+    [itemId],
+  );
+
+  return result.rows.map(toChunkDTO);
 }
 
-/** All chunks across all items, with embeddings parsed - used for retrieval (Step 4). */
-export function getAllChunks() {
-  return selectAllStmt.all().map(toChunkDTO);
+/**
+ * Internal maintenance helper.
+ * Only use in trusted maintenance scripts, never directly in API routes.
+ */
+export async function deleteChunksByItemIdForMaintenance(itemId) {
+  await pool.query("DELETE FROM chunks WHERE item_id = $1", [itemId]);
 }
 
-export function deleteChunksByItemId(itemId) {
-  deleteByItemIdStmt.run(itemId);
+/**
+ * Finds relevant chunks belonging only to the specified user.
+ */
+export async function searchSimilarChunks(
+  embedding,
+  { userId, topK = 5, similarityThreshold = 0.3 } = {},
+) {
+  if (!userId) {
+    throw new Error("Authenticated user ID is required for semantic search");
+  }
+
+  const result = await pool.query(
+    `
+      SELECT
+        c.id,
+        c.item_id,
+        c.chunk_index,
+        c.content,
+        1 - (c.embedding <=> $1::vector) AS similarity,
+        i.source_type,
+        i.source_url,
+        i.title
+      FROM chunks c
+      JOIN items i ON i.id = c.item_id
+      WHERE i.user_id = $2
+        AND 1 - (c.embedding <=> $1::vector) >= $3
+      ORDER BY c.embedding <=> $1::vector ASC
+      LIMIT $4
+    `,
+    [JSON.stringify(embedding), userId, similarityThreshold, topK],
+  );
+
+  return result.rows.map((row) => ({
+    chunkId: row.id,
+    itemId: row.item_id,
+    chunkIndex: row.chunk_index,
+    content: row.content,
+    score: Number(Number(row.similarity).toFixed(4)),
+    sourceType: row.source_type,
+    sourceUrl: row.source_url,
+    title: row.title,
+  }));
 }

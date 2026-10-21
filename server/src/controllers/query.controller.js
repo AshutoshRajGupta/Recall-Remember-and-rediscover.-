@@ -1,8 +1,10 @@
-import { answerQuestion } from '../services/query.service.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { answerQuestion } from "../services/query.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const postQuery = asyncHandler(async (req, res) => {
   const { question } = req.body ?? {};
-  const result = await answerQuestion(question);
+
+  const result = await answerQuestion(question, req.user.id);
+
   res.status(200).json(result);
 });

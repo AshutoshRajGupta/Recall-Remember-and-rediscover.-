@@ -1,56 +1,53 @@
-import { generateEmbedding } from './embedding.service.js';
-import { getAllChunks } from '../models/chunk.model.js';
-import { getItemById } from '../models/item.model.js';
-import { cosineSimilarity } from '../utils/vector.utils.js';
-import { config } from '../config/env.js';
-import { AppError } from '../utils/AppError.js';
+import { performance } from "node:perf_hooks";
+import { generateEmbedding } from "./embedding.service.js";
+import { searchSimilarChunks } from "../models/chunk.model.js";
+import { config } from "../config/env.js";
+import { AppError } from "../utils/AppError.js";
 
-/**
- * Finds the chunks most semantically similar to a question.
- *
- * Prototype-scale approach: load every chunk, score it against the question
- * embedding, sort, keep the top matches above a minimum similarity. No index -
- * see README "Retrieval" for why that's fine here and what it means at scale.
- */
-export async function retrieveRelevantChunks(rawQuestion) {
-  const question = typeof rawQuestion === 'string' ? rawQuestion.trim() : '';
+export async function retrieveRelevantChunks(rawQuestion, userId) {
+  const question = typeof rawQuestion === "string" ? rawQuestion.trim() : "";
+
   if (!question) {
-    throw new AppError(400, 'Question cannot be empty');
+    throw new AppError(400, "Question cannot be empty");
   }
 
-  console.log('[retrieval] generating query embedding');
-  // Same embedding.service.js / same model used for chunks - required so the
-  // question and the chunks land in the same vector space and are comparable.
+  if (!userId) {
+    throw new AppError(401, "Authentication required");
+  }
+
+  const retrievalStartedAt = performance.now();
+
+  const embeddingStartedAt = performance.now();
+  console.log("[retrieval] generating query embedding");
+
   const questionEmbedding = await generateEmbedding(question);
 
-  const chunks = getAllChunks();
-  console.log(`[retrieval] searching ${chunks.length} chunk(s)`);
+  const embeddingMs = Math.round(performance.now() - embeddingStartedAt);
 
-  const scored = chunks
-    .map((chunk) => ({ chunk, score: cosineSimilarity(questionEmbedding, chunk.embedding) }))
-    .sort((a, b) => b.score - a.score);
+  const searchStartedAt = performance.now();
 
-  const topMatches = scored
-    .filter((entry) => entry.score >= config.similarityThreshold)
-    .slice(0, config.topK);
-
-  console.log(
-    `[retrieval] retrieved ${topMatches.length} chunk(s) above threshold ${config.similarityThreshold}` +
-      (topMatches.length ? `, highest score ${topMatches[0].score.toFixed(3)}` : '')
-  );
-
-  const results = topMatches.map(({ chunk, score }) => {
-    const item = getItemById(chunk.itemId);
-    return {
-      chunkId: chunk.id,
-      itemId: chunk.itemId,
-      content: chunk.content,
-      score: Number(score.toFixed(4)),
-      sourceType: item?.type ?? null,
-      sourceUrl: item?.sourceUrl ?? null,
-      title: item?.title ?? null,
-    };
+  const results = await searchSimilarChunks(questionEmbedding, {
+    userId,
+    topK: config.topK,
+    similarityThreshold: config.similarityThreshold,
   });
 
-  return { question, results };
+  const vectorSearchMs = Math.round(performance.now() - searchStartedAt);
+
+  const totalRetrievalMs = Math.round(performance.now() - retrievalStartedAt);
+
+  console.log(
+    `[perf] embedding_ms=${embeddingMs} vector_search_ms=${vectorSearchMs} ` +
+      `retrieval_ms=${totalRetrievalMs} chunks=${results.length}`,
+  );
+
+  console.log(
+    `[retrieval] retrieved ${results.length} chunk(s) above threshold ${config.similarityThreshold}` +
+      (results.length ? `, highest score ${results[0].score.toFixed(3)}` : ""),
+  );
+
+  return {
+    question,
+    results,
+  };
 }

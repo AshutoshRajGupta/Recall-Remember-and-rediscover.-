@@ -1,23 +1,8 @@
-import { db } from './db.js';
-
-const insertStmt = db.prepare(`
-  INSERT INTO items (content, source_type, source_url, title)
-  VALUES (?, ?, ?, ?)
-`);
-
-const selectByIdStmt = db.prepare(`
-  SELECT id, content, source_type, source_url, title, created_at
-  FROM items
-  WHERE id = ?
-`);
-
-const selectAllStmt = db.prepare(`
-  SELECT id, content, source_type, source_url, title, created_at
-  FROM items
-  ORDER BY id DESC
-`);
+import { pool } from "./db.js";
 
 function toItemDTO(row) {
+  if (!row) return null;
+
   return {
     id: row.id,
     type: row.source_type,
@@ -28,18 +13,84 @@ function toItemDTO(row) {
   };
 }
 
-export function createItem({ content, sourceType, sourceUrl = null, title = null }) {
-  const result = insertStmt.run(content, sourceType, sourceUrl, title);
-  const row = selectByIdStmt.get(Number(result.lastInsertRowid));
-  return toItemDTO(row);
+export async function createItem({
+  userId,
+  content,
+  sourceType,
+  sourceUrl = null,
+  title = null,
+}) {
+  if (!userId) {
+    throw new Error("Authenticated user ID is required");
+  }
+
+  const result = await pool.query(
+    `
+      INSERT INTO items (
+        user_id,
+        content,
+        source_type,
+        source_url,
+        title
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, content, source_type, source_url, title, created_at
+    `,
+    [userId, content, sourceType, sourceUrl, title],
+  );
+
+  return toItemDTO(result.rows[0]);
 }
 
-export function getAllItems() {
-  return selectAllStmt.all().map(toItemDTO);
+export async function getAllItems(userId) {
+  if (!userId) {
+    throw new Error("Authenticated user ID is required");
+  }
+
+  const result = await pool.query(
+    `
+      SELECT id, content, source_type, source_url, title, created_at
+      FROM items
+      WHERE user_id = $1
+      ORDER BY id DESC
+    `,
+    [userId],
+  );
+
+  return result.rows.map(toItemDTO);
 }
 
-/** Used by retrieval (Step 4) to attach source info to a matched chunk. Null if not found. */
-export function getItemById(id) {
-  const row = selectByIdStmt.get(id);
-  return row ? toItemDTO(row) : null;
+export async function getItemById(id, userId) {
+  if (!userId) {
+    throw new Error("Authenticated user ID is required");
+  }
+
+  const result = await pool.query(
+    `
+      SELECT id, content, source_type, source_url, title, created_at
+      FROM items
+      WHERE id = $1 AND user_id = $2
+      LIMIT 1
+    `,
+    [id, userId],
+  );
+
+  return toItemDTO(result.rows[0]);
+}
+
+/**
+ * Internal maintenance helper.
+ * Retrieves items across all users for backfill operations.
+ * Never use this function in user-facing API controllers.
+ */
+export async function getAllItemsForBackfill() {
+  const result = await pool.query(
+    `
+      SELECT id, content, source_type, source_url, title, created_at
+      FROM items
+      ORDER BY id DESC
+    `,
+  );
+
+  return result.rows.map(toItemDTO);
 }

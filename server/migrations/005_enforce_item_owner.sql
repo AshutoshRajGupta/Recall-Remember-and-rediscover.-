@@ -1,0 +1,2 @@
+ALTER TABLE items
+ALTER COLUMN user_id SET NOT NULL;
